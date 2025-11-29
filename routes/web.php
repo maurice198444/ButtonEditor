@@ -12,3 +12,4 @@ Route::inertia('/about', 'About');
 
 Route::get('/cards/{card}', [CardController::class, 'show']);
 Route::post('/cards/{card}/versions', [CardController::class, 'storeVersion']);
+Route::get('/cards/{card}/edit', [CardController::class, 'edit'])->name('cards.edit');

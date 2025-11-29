@@ -16,7 +16,11 @@
     },
     "dependencies": {
         "@inertiajs/vue3": "^2.2.19",
+        "@mdi/font": "^7.4.47",
         "@vitejs/plugin-vue": "^6.0.2",
-        "vue": "^3.5.25"
+        "moveable": "^0.53.0",
+        "pinia": "^3.0.4",
+        "vue": "^3.5.25",
+        "vue3-moveable": "^0.28.0"
     }
 }

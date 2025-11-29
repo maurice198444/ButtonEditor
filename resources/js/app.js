@@ -1,22 +1,15 @@
 import './bootstrap';
-import '../css/app.css';
-import { createApp, h } from 'vue'
-import { createInertiaApp, Head, Link } from '@inertiajs/vue3'
-import Layout from './Layouts/Layout.vue';
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import EditorPage from './views/EditorPage.vue';
 
-createInertiaApp({
-    title: title => `Button Editor | ${title}`,
-    resolve: name => {
-        const pages = import.meta.glob('./Pages/**/*.vue', { eager: true })
-        let page = pages[`./Pages/${name}.vue`];
-        page.default.layout = page.default.layout || Layout;
-        return page.default;
-    },
-    setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .component('Head', Head)
-            .component('Link', Link)
-            .mount(el)
-    },
-});
+// Root-Element holen und cardId aus dem data-Attribut lesen
+const appElement = document.getElementById('app');
+const cardId = Number(appElement.dataset.cardId);
+
+// Vue-App erstellen und EditorPage als Root-Komponente mounten
+const app = createApp(EditorPage, { cardId });
+
+app.use(createPinia());
+
+app.mount('#app');
