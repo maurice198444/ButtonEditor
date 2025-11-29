@@ -11,7 +11,9 @@
             :ref="setElementRef"
             @mousedown.stop="select(el.id)"
         >
-            <CardIcon :element="el" />
+            <CardIcon v-if="el.type === 'icon'" :element="el" />
+            <CardText v-else-if="el.type === 'text'" :element="el" />
+            <!-- weitere Typen später hier -->
         </div>
 
         <!-- EIN Moveable, das auf das aktuell selektierte Element zeigt -->
@@ -35,6 +37,7 @@ import Moveable from "vue3-moveable";
 import { useDocumentStore } from "../stores/documentStore";
 import { useSelectionStore } from "../stores/selectionStore";
 import CardIcon from "./elements/CardIcon.vue";
+import CardText from "./elements/CardText.vue";
 
 const store = useDocumentStore();
 const selectionStore = useSelectionStore();
