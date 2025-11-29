@@ -1,8 +1,12 @@
-<script setup></script>
+<script setup>
+defineProps({
+    user: String,
+});
+</script>
 
 <template>
-    <Head title="Home" />
+    <Head :title="$page.component" />
     <div>
-        <h1>Hello, Button Editor!</h1>
+        <h1>Hallo {{ user }}</h1>
     </div>
 </template>

@@ -3,10 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia ::render('Home');
-});
 
-Route::get('/about', function () {
-    return inertia('About');
-});
+Route::inertia('/', 'Home', ['user' => 'Maurice']);
+
+Route::inertia('/about', 'About');
