@@ -18,14 +18,23 @@ const props = defineProps({
 });
 
 const mdiClass = computed(() => {
-    // "mdi:lightbulb" → "mdi-lightbulb"
-    const icon = props.element.data?.icon ?? "mdi:lightbulb";
-    return icon.replace(":", "-");
+    const raw = props.element.data?.icon ?? "mdi:lightbulb-outline";
+
+    // erlaubt sowohl "mdi:lightbulb" als auch "mdi-lightbulb"
+    if (raw.startsWith("mdi:")) {
+        return raw.replace("mdi:", "mdi-");
+    }
+
+    if (raw.startsWith("mdi-")) {
+        return raw;
+    }
+
+    return `mdi-${raw}`;
 });
 
 const iconStyle = computed(() => {
-    const width = props.element.size?.width ?? 80;
-    const fontSize = width * 0.6;
+    const s = props.element.style ?? {};
+    const fontSize = s.fontSize ?? 24;
 
     return {
         display: "flex",
@@ -33,8 +42,9 @@ const iconStyle = computed(() => {
         justifyContent: "center",
         width: "100%",
         height: "100%",
-        color: props.element.style?.color ?? "#fff",
+        color: s.color ?? "#ffffff",
         fontSize: fontSize + "px",
+        lineHeight: 1,
     };
 });
 </script>

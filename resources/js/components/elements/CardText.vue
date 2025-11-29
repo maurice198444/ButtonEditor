@@ -6,7 +6,9 @@
 
 <script setup>
 import { computed } from "vue";
-import { useDocumentStore } from "../../stores/documentStore";
+// useDocumentStore ist aktuell nicht zwingend nötig, könnte aber später
+// für Bindings genutzt werden.
+// import { useDocumentStore } from "../../stores/documentStore";
 
 const props = defineProps({
     element: {
@@ -15,42 +17,33 @@ const props = defineProps({
     },
 });
 
-// später kannst du hier Bindings (bindings.name etc.) auflösen
-const documentStore = useDocumentStore();
-
 const displayText = computed(() => {
-    const data = props.element.data || {};
-    // falls binding:name → aus documentStore.document.bindings.name lesen
-    if (data.binding === "name" && documentStore.document?.bindings?.name) {
-        return documentStore.document.bindings.name;
+    const data = props.element.data ?? {};
+    if (data.text && data.text.trim() !== "") {
+        return data.text;
     }
-    return data.text ?? "";
+
+    // Platzhalter, falls kein Text gesetzt ist
+    return "Text";
 });
 
 const textStyle = computed(() => {
-    const s = props.element.style || {};
+    const s = props.element.style ?? {};
+
     return {
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent:
-            s.textAlign === "right"
-                ? "flex-end"
-                : s.textAlign === "center"
-                ? "center"
-                : "flex-start",
         color: s.color ?? "#ffffff",
         fontSize: (s.fontSize ?? 16) + "px",
         fontWeight: s.fontWeight ?? 400,
+        textAlign: s.textAlign ?? "left",
         lineHeight: 1.2,
         whiteSpace: "nowrap",
+        pointerEvents: "none", // Selection/Drag über Wrapper
     };
 });
 </script>
 
 <style scoped>
 .card-text {
-    pointer-events: none; /* Selection/Drag passiert über Wrapper */
+    pointer-events: none;
 }
 </style>

@@ -1,159 +1,280 @@
-<!-- resources/js/components/CanvasEngine.vue -->
 <template>
     <div class="canvas" :style="canvasStyle" @mousedown="onCanvasClick">
-        <!-- Elemente -->
         <div
             v-for="el in doc.elements"
             :key="el.id"
             class="element-wrapper"
             :style="elementWrapperStyle(el)"
             :data-id="el.id"
-            :ref="setElementRef"
-            @mousedown.stop="select(el.id)"
+            @mousedown.stop="onElementMouseDown(el, $event)"
         >
             <CardIcon v-if="el.type === 'icon'" :element="el" />
             <CardText v-else-if="el.type === 'text'" :element="el" />
-            <!-- weitere Typen später hier -->
-        </div>
 
-        <!-- EIN Moveable, das auf das aktuell selektierte Element zeigt -->
-        <Moveable
-            v-if="selectedId && elementRefs[selectedId]"
-            :target="elementRefs[selectedId]"
-            :draggable="true"
-            :resizable="true"
-            :rotatable="true"
-            :snappable="false"
-            @drag="onDrag"
-            @resize="onResize"
-            @rotateEnd="onRotateEnd"
-        />
+            <!-- Resize-Handle unten rechts -->
+            <div
+                class="resize-handle"
+                @mousedown.stop="onResizeMouseDown(el, $event)"
+            ></div>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
-import Moveable from "vue3-moveable";
+import { computed, reactive } from "vue";
 import { useDocumentStore } from "../stores/documentStore";
 import { useSelectionStore } from "../stores/selectionStore";
 import CardIcon from "./elements/CardIcon.vue";
 import CardText from "./elements/CardText.vue";
 
-const store = useDocumentStore();
+const documentStore = useDocumentStore();
 const selectionStore = useSelectionStore();
 
-/**
- * Dokument aus dem Store
- */
 const doc = computed(
-    () =>
-        store.document ?? {
-            canvas: { width: 600, height: 350, bg: { color: "#111827" } },
-            elements: [],
-        }
+    () => documentStore.document ?? { meta: {}, elements: [] }
 );
 
-/**
- * aktuell selektierte ID aus dem Selection-Store
- */
-const selectedId = computed(() => selectionStore.selectedId);
-
-/**
- * Canvas-Styling
- */
-const canvasStyle = computed(() => ({
-    position: "relative",
-    width: (doc.value.canvas?.width ?? 600) + "px",
-    height: (doc.value.canvas?.height ?? 350) + "px",
-    backgroundColor: doc.value.canvas?.bg?.color ?? "#111827",
-    border: "1px solid #4b5563",
-    margin: "2rem auto",
-}));
-
-/**
- * Wrapper-Styling je Element
- */
-const elementWrapperStyle = (el) => ({
-    position: "absolute",
-    left: (el.position?.x ?? 0) + "px",
-    top: (el.position?.y ?? 0) + "px",
-    width: (el.size?.width ?? 80) + "px",
-    height: (el.size?.height ?? 80) + "px",
-    border: "1px dashed rgba(148,163,184,0.6)",
-    boxSizing: "border-box",
+const canvasStyle = computed(() => {
+    const meta = doc.value.meta ?? {};
+    return {
+        position: "relative",
+        width: (meta.width ?? 320) + "px",
+        height: (meta.height ?? 180) + "px",
+        background: meta.background ?? "#111827",
+        border: "1px solid #374151",
+        borderRadius: "0.75rem",
+        boxSizing: "border-box",
+        overflow: "hidden",
+    };
 });
 
 /**
- * DOM-Refs für Moveable
+ * Wrapper-Style:
+ * - Position absolut
+ * - Text & Icon: Größe primär über fontSize -> Rahmen am Inhalt
+ * - andere Typen: Größe über size
  */
-const elementRefs = ref({});
+function elementWrapperStyle(el) {
+    const pos = el.position ?? {};
+    const size = el.size ?? {};
+    const style = el.style ?? {};
+    const selected = selectionStore.selectedId === el.id;
 
-const setElementRef = (el) => {
-    if (!el) return;
-    const id = el.dataset.id;
-    if (!id) return;
-    elementRefs.value[id] = el;
-};
+    const base = {
+        position: "absolute",
+        left: (pos.x ?? 0) + "px",
+        top: (pos.y ?? 0) + "px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxSizing: "border-box",
+        border: selected ? "1px solid #3b82f6" : "1px solid transparent",
+        borderRadius: "0.25rem",
+        pointerEvents: "auto",
+        userSelect: "none",
+        background: "transparent",
+        cursor: "move",
+    };
 
-/**
- * Auswahl steuern
- */
-const select = (id) => {
-    selectionStore.select(id);
-};
+    if (el.type === "text") {
+        const fontSize = style.fontSize ?? 16;
+        const paddingX = 12;
+        const paddingY = 8;
 
-const onCanvasClick = (e) => {
-    if (e.target.classList.contains("canvas")) {
-        selectionStore.clear();
+        const height = fontSize * 1.8;
+        const width = size.width ?? fontSize * 9;
+
+        return {
+            ...base,
+            minHeight: height + "px",
+            minWidth: width + "px",
+            padding: `${paddingY}px ${paddingX}px`,
+        };
     }
-};
 
-/**
- * Moveable-Events → zurück in den Store schreiben
- */
-const onDrag = (e) => {
-    if (!selectedId.value) return;
+    if (el.type === "icon") {
+        const fontSize = style.fontSize ?? 24;
+        const padding = 8;
+        const box = fontSize * 2; // Rahmen ungefähr 2x Font-Size
 
-    const { left, top, target } = e;
+        return {
+            ...base,
+            minWidth: box + padding * 2 + "px",
+            minHeight: box + padding * 2 + "px",
+            padding: padding + "px",
+        };
+    }
 
-    store.updateElement(selectedId.value, {
-        position: { x: left, y: top },
-    });
+    // Fallback für andere Typen
+    return {
+        ...base,
+        width: (size.width ?? 40) + "px",
+        height: (size.height ?? 40) + "px",
+    };
+}
 
-    target.style.left = `${left}px`;
-    target.style.top = `${top}px`;
-    target.style.transform = "translate(0, 0)";
-};
+/* Drag-State */
+const dragState = reactive({
+    id: null,
+    startMouseX: 0,
+    startMouseY: 0,
+    startX: 0,
+    startY: 0,
+    dragging: false,
+});
 
-const onResize = (e) => {
-    if (!selectedId.value) return;
+/* Resize-State */
+const resizeState = reactive({
+    id: null,
+    startMouseX: 0,
+    startMouseY: 0,
+    startWidth: 0,
+    startHeight: 0,
+    startFontSize: 0,
+    isText: false,
+    isIcon: false,
+    resizing: false,
+});
 
-    const { width, height, drag, target } = e;
-    const left = drag?.left ?? 0;
-    const top = drag?.top ?? 0;
+function onCanvasClick() {
+    selectionStore.clear();
+}
 
-    store.updateElement(selectedId.value, {
-        position: { x: left, y: top },
-        size: { width, height },
-    });
+/* DRAG: Element bewegen */
+function onElementMouseDown(el, event) {
+    event.preventDefault();
 
-    target.style.left = `${left}px`;
-    target.style.top = `${top}px`;
-    target.style.width = `${width}px`;
-    target.style.height = `${height}px`;
-    target.style.transform = "translate(0, 0)";
-};
+    selectionStore.select(el.id);
 
-const onRotateEnd = (e) => {
-    if (!selectedId.value) return;
-    const rotate = e.lastEvent.rotate;
-    const el = doc.value.elements.find((x) => x.id === selectedId.value);
-    const prevScale = el?.transform?.scale ?? 1;
+    dragState.id = el.id;
+    dragState.dragging = true;
+    dragState.startMouseX = event.clientX;
+    dragState.startMouseY = event.clientY;
+    dragState.startX = el.position?.x ?? 0;
+    dragState.startY = el.position?.y ?? 0;
 
-    store.updateElement(selectedId.value, {
-        transform: { rotation: rotate, scale: prevScale },
-    });
-};
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+}
+
+/* RESIZE: Handle unten rechts */
+function onResizeMouseDown(el, event) {
+    event.preventDefault();
+
+    selectionStore.select(el.id);
+
+    const size = el.size ?? {};
+    const style = el.style ?? {};
+
+    resizeState.id = el.id;
+    resizeState.resizing = true;
+    resizeState.startMouseX = event.clientX;
+    resizeState.startMouseY = event.clientY;
+    resizeState.startWidth = size.width ?? 40;
+    resizeState.startHeight = size.height ?? 40;
+    resizeState.startFontSize =
+        style.fontSize ?? (el.type === "icon" ? 24 : 16);
+    resizeState.isText = el.type === "text";
+    resizeState.isIcon = el.type === "icon";
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+}
+
+function onMouseMove(event) {
+    /* Drag */
+    if (dragState.dragging && dragState.id && !resizeState.resizing) {
+        const dx = event.clientX - dragState.startMouseX;
+        const dy = event.clientY - dragState.startMouseY;
+
+        const newX = dragState.startX + dx;
+        const newY = dragState.startY + dy;
+
+        documentStore.updateElement(dragState.id, {
+            position: {
+                x: newX,
+                y: newY,
+            },
+        });
+    }
+
+    /* Resize */
+    if (resizeState.resizing && resizeState.id) {
+        const dx = event.clientX - resizeState.startMouseX;
+        const dy = event.clientY - resizeState.startMouseY;
+
+        // gemeinsame Parameter
+        const delta = Math.max(dx, dy);
+        const factor = 0.3; // wie "schnell" die Größe steigt/fällt
+
+        if (resizeState.isText) {
+            let newFontSize = resizeState.startFontSize + delta * factor;
+            newFontSize = clamp(newFontSize, 8, 72);
+
+            const height = newFontSize * 1.8;
+            const width = newFontSize * 9;
+
+            documentStore.updateElement(resizeState.id, {
+                style: {
+                    fontSize: newFontSize,
+                },
+                size: {
+                    width,
+                    height,
+                },
+            });
+        } else if (resizeState.isIcon) {
+            let newFontSize = resizeState.startFontSize + delta * factor;
+            newFontSize = clamp(newFontSize, 8, 96);
+
+            const box = newFontSize * 2;
+
+            documentStore.updateElement(resizeState.id, {
+                style: {
+                    fontSize: newFontSize,
+                },
+                size: {
+                    width: box,
+                    height: box,
+                },
+            });
+        } else {
+            // Fallback für andere Typen: klassische width/height
+            let newWidth = resizeState.startWidth + dx;
+            let newHeight = resizeState.startHeight + dy;
+
+            const minSize = 16;
+            newWidth = Math.max(minSize, newWidth);
+            newHeight = Math.max(minSize, newHeight);
+
+            documentStore.updateElement(resizeState.id, {
+                size: {
+                    width: newWidth,
+                    height: newHeight,
+                },
+            });
+        }
+    }
+}
+
+function onMouseUp() {
+    if (dragState.dragging || resizeState.resizing) {
+        dragState.dragging = false;
+        dragState.id = null;
+
+        resizeState.resizing = false;
+        resizeState.id = null;
+        resizeState.isText = false;
+        resizeState.isIcon = false;
+
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+    }
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
 </script>
 
 <style scoped>
@@ -164,5 +285,18 @@ const onRotateEnd = (e) => {
 .element-wrapper {
     position: absolute;
     box-sizing: border-box;
+}
+
+/* kleiner Resize-Handle unten rechts */
+.resize-handle {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #3b82f6;
+    border: 1px solid #0f172a;
+    cursor: se-resize;
 }
 </style>

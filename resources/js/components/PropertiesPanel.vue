@@ -19,105 +19,59 @@
             </div>
 
             <!-- Icon-spezifisch -->
-            <div class="field" v-if="isIcon">
-                <label>Icon</label>
-                <input
-                    v-model="local.icon"
-                    type="text"
-                    placeholder="mdi:lightbulb"
-                    @change="applyIcon"
-                />
-            </div>
+            <template v-if="isIcon">
+                <div class="field">
+                    <label>Icon</label>
+                    <input
+                        v-model="form.icon"
+                        type="text"
+                        placeholder="mdi:lightbulb-outline"
+                        @input="applyIcon"
+                    />
+                </div>
+
+                <div class="field">
+                    <label>Farbe</label>
+                    <input
+                        v-model="form.color"
+                        type="color"
+                        @input="applyColor"
+                    />
+                </div>
+            </template>
 
             <!-- Text-spezifisch -->
-            <div v-if="isText" class="field">
-                <label>Text</label>
-                <input
-                    v-model="local.text"
-                    type="text"
-                    placeholder="Anzeigename"
-                    @change="applyText"
-                />
-            </div>
-
-            <div v-if="isText" class="field-group">
+            <template v-if="isText">
                 <div class="field">
-                    <label>Schriftgröße</label>
+                    <label>Text</label>
                     <input
-                        v-model.number="local.fontSize"
+                        v-model="form.text"
+                        type="text"
+                        placeholder="Wohnzimmer Lampe"
+                        @input="applyText"
+                    />
+                </div>
+
+                <div class="field">
+                    <label>Farbe</label>
+                    <input
+                        v-model="form.color"
+                        type="color"
+                        @input="applyColor"
+                    />
+                </div>
+
+                <div class="field">
+                    <label>Font-Size (px)</label>
+                    <input
+                        v-model.number="form.fontSize"
                         type="number"
                         min="8"
-                        @change="applyTypography"
+                        max="64"
+                        @input="applyFontSize"
                     />
                 </div>
-                <div class="field">
-                    <label>Stärke</label>
-                    <select
-                        v-model="local.fontWeight"
-                        @change="applyTypography"
-                    >
-                        <option value="300">Light (300)</option>
-                        <option value="400">Normal (400)</option>
-                        <option value="600">Semi Bold (600)</option>
-                        <option value="700">Bold (700)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div v-if="isText" class="field">
-                <label>Ausrichtung</label>
-                <select v-model="local.textAlign" @change="applyTypography">
-                    <option value="left">Links</option>
-                    <option value="center">Zentriert</option>
-                    <option value="right">Rechts</option>
-                </select>
-            </div>
-
-            <!-- Position -->
-            <div class="field-group">
-                <div class="field">
-                    <label>X</label>
-                    <input
-                        v-model.number="local.x"
-                        type="number"
-                        @change="applyPosition"
-                    />
-                </div>
-                <div class="field">
-                    <label>Y</label>
-                    <input
-                        v-model.number="local.y"
-                        type="number"
-                        @change="applyPosition"
-                    />
-                </div>
-            </div>
-
-            <!-- Größe -->
-            <div class="field-group">
-                <div class="field">
-                    <label>Breite</label>
-                    <input
-                        v-model.number="local.width"
-                        type="number"
-                        @change="applySize"
-                    />
-                </div>
-                <div class="field">
-                    <label>Höhe</label>
-                    <input
-                        v-model.number="local.height"
-                        type="number"
-                        @change="applySize"
-                    />
-                </div>
-            </div>
-
-            <!-- Farbe (für Icon & Text gleich) -->
-            <div class="field">
-                <label>Farbe</label>
-                <input v-model="local.color" type="color" @input="applyColor" />
-            </div>
+            </template>
         </div>
     </div>
 </template>
@@ -131,150 +85,128 @@ const documentStore = useDocumentStore();
 const selectionStore = useSelectionStore();
 
 const selectedElement = computed(() => {
-    if (!documentStore.document || !selectionStore.selectedId) return null;
-    return documentStore.document.elements.find(
-        (el) => el.id === selectionStore.selectedId
+    const doc = documentStore.document;
+    if (!doc) return null;
+
+    return (
+        doc.elements.find((el) => el.id === selectionStore.selectedId) ?? null
     );
 });
 
-const isIcon = computed(() => selectedElement.value?.type === "icon");
-const isText = computed(() => selectedElement.value?.type === "text");
+const isIcon = computed(() => selectedElement.value?.type === "icon" || false);
+const isText = computed(() => selectedElement.value?.type === "text" || false);
 
-const local = reactive({
-    icon: "",
+const form = reactive({
     text: "",
-    x: 0,
-    y: 0,
-    width: 80,
-    height: 80,
     color: "#ffffff",
     fontSize: 16,
-    fontWeight: 400,
-    textAlign: "left",
+    icon: "",
 });
 
+// wenn Auswahl wechselt -> Form updaten
 watch(
     selectedElement,
     (el) => {
         if (!el) return;
 
-        // gemeinsame Werte
-        local.x = el.position?.x ?? 0;
-        local.y = el.position?.y ?? 0;
-        local.width = el.size?.width ?? 80;
-        local.height = el.size?.height ?? 80;
-        local.color = el.style?.color ?? "#ffffff";
+        const s = el.style ?? {};
+        const d = el.data ?? {};
 
-        if (el.type === "icon") {
-            local.icon = el.data?.icon ?? "mdi:lightbulb";
-        }
-
-        if (el.type === "text") {
-            local.text = el.data?.text ?? "";
-            local.fontSize = el.style?.fontSize ?? 16;
-            local.fontWeight = el.style?.fontWeight ?? 400;
-            local.textAlign = el.style?.textAlign ?? "left";
-        }
+        form.text = d.text ?? "";
+        form.color = s.color ?? "#ffffff";
+        form.fontSize = s.fontSize ?? 16;
+        form.icon = d.icon ?? "mdi:lightbulb-outline";
     },
     { immediate: true }
 );
 
-const applyIcon = () => {
-    if (!selectedElement.value || !isIcon.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        data: {
-            ...(selectedElement.value.data || {}),
-            icon: local.icon,
-        },
-    });
-};
+function ensureSelected() {
+    if (!selectedElement.value) return false;
+    return true;
+}
 
-const applyText = () => {
-    if (!selectedElement.value || !isText.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        data: {
-            ...(selectedElement.value.data || {}),
-            text: local.text,
-        },
-    });
-};
+function applyIcon() {
+    if (!ensureSelected()) return;
 
-const applyTypography = () => {
-    if (!selectedElement.value || !isText.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        style: {
-            ...(selectedElement.value.style || {}),
-            fontSize: local.fontSize,
-            fontWeight: local.fontWeight,
-            textAlign: local.textAlign,
-            color: local.color,
-        },
+    documentStore.updateElementData(selectedElement.value.id, {
+        icon: form.icon,
     });
-};
+}
 
-const applyPosition = () => {
-    if (!selectedElement.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        position: { x: local.x, y: local.y },
-    });
-};
+function applyText() {
+    if (!ensureSelected()) return;
 
-const applySize = () => {
-    if (!selectedElement.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        size: { width: local.width, height: local.height },
+    documentStore.updateElementData(selectedElement.value.id, {
+        text: form.text,
     });
-};
+}
 
-const applyColor = () => {
-    if (!selectedElement.value) return;
-    documentStore.updateElement(selectedElement.value.id, {
-        style: {
-            ...(selectedElement.value.style || {}),
-            color: local.color,
-        },
+function applyColor() {
+    if (!ensureSelected()) return;
+
+    documentStore.updateElementStyle(selectedElement.value.id, {
+        color: form.color,
     });
-};
+}
+
+function applyFontSize() {
+    if (!ensureSelected()) return;
+
+    documentStore.updateElementStyle(selectedElement.value.id, {
+        fontSize: form.fontSize,
+    });
+}
 </script>
 
 <style scoped>
 .panel {
-    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #e5e7eb;
 }
+
 .panel-title {
+    font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
+
 .muted {
-    color: #6b7280;
+    font-size: 0.875rem;
+    color: #9ca3af;
 }
+
 .fields {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
 }
+
 .field {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
-.field-group {
-    display: flex;
-    gap: 0.5rem;
-}
+
 label {
-    font-size: 12px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: #9ca3af;
 }
+
 input[type="text"],
-input[type="number"],
-select {
-    background: #020617;
+input[type="number"] {
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.375rem;
     border: 1px solid #374151;
+    background: #020617;
     color: #e5e7eb;
-    border-radius: 4px;
-    padding: 4px 6px;
+    font-size: 0.875rem;
 }
+
 input[type="color"] {
     width: 100%;
     height: 32px;
@@ -283,6 +215,7 @@ input[type="color"] {
     border: 1px solid #374151;
     background: #020617;
 }
+
 .value {
     font-family: monospace;
     color: #e5e7eb;

@@ -1,7 +1,7 @@
 <template>
     <main class="editor-page">
         <section class="editor-main">
-            <CanvasEngine v-if="documentStore.document" />
+            <CanvasEngine v-if="docLoaded" />
         </section>
 
         <aside class="editor-sidebar">
@@ -11,45 +11,47 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import CanvasEngine from "../components/CanvasEngine.vue";
 import PropertiesPanel from "../components/PropertiesPanel.vue";
 import { useDocumentStore } from "../stores/documentStore";
 
-const documentStore = useDocumentStore();
-const appElement = document.getElementById("app");
-const cardId = appElement?.dataset.cardId;
+const props = defineProps({
+    cardId: {
+        type: Number,
+        required: true,
+    },
+});
 
-/**
- * Load card document on mount and initialize the document store.
- */
+const documentStore = useDocumentStore();
+
+const docLoaded = computed(
+    () =>
+        !!documentStore.document &&
+        Array.isArray(documentStore.document.elements)
+);
+
 onMounted(async () => {
-    if (!cardId) {
-        console.error("Missing cardId on app element");
+    // Erwartet, dass /cards/{card} JSON mit { document: {...} } liefert
+    const response = await fetch(`/cards/${props.cardId}`);
+    if (!response.ok) {
+        console.error("Failed to load card document");
         return;
     }
 
-    try {
-        const response = await fetch(`/cards/${cardId}`);
-        if (!response.ok) {
-            console.error("Failed to fetch card", response.statusText);
-            return;
-        }
-
-        const payload = await response.json();
-        documentStore.init(cardId, payload.document);
-    } catch (error) {
-        console.error("Error fetching card", error);
-    }
+    const payload = await response.json();
+    documentStore.init(props.cardId, payload.document);
 });
 </script>
 
 <style scoped>
 .editor-page {
     display: flex;
-    min-height: 100vh;
-    background: #111827;
+    height: 100vh;
+    background: #020617;
     color: #e5e7eb;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
 }
 
 .editor-main {
